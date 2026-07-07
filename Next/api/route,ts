@@ -1,0 +1,54 @@
+// Import NextResponse to send back HTTP responses (JSON, status codes, etc.)
+import { NextResponse } from "next/server";
+// Import Prisma client to talk to PostgreSQL
+import { prisma } from "@/lib/prisma";
+
+/**
+ * GET — Read data from the database
+ * URL example: /api/admin/experience or /api/admin/experience?limit=3
+ *
+ * Flow:
+ *   1. Extract query params (like ?limit=3) from the URL
+ *   2. Call prisma to find records from the database
+ *   3. Return the data as JSON
+ */
+export async function GET(req: Request) {
+  // Parse the URL to extract query parameters
+  const { searchParams } = new URL(req.url);
+  // Convert "?limit=3" into the number 3, or undefined if not provided
+  // Used for the homepage widget (show only 3 recent messages)
+  const limit = Number(searchParams.get("limit")) || undefined;
+
+  // Query the database
+  const items = await prisma.resource.findMany({
+    orderBy: { created_at: "desc" }, // newest first
+    take: limit,                      // limit results (if provided)
+  });
+
+  // Return as JSON — fetch("/api/...") will receive this
+  return NextResponse.json(items);
+}
+
+/**
+ * POST — Create a new record in the database
+ * URL: /api/admin/experience (same URL, different method)
+ *
+ * Flow:
+ *   1. Read the JSON body sent by the frontend form
+ *   2. Insert it into PostgreSQL via prisma
+ *   3. Return the created record with status 201 (Created)
+ */
+export async function POST(req: Request) {
+  // Parse the JSON body from the request
+  // Frontend sends: fetch("/api/...", { method: "POST", body: JSON.stringify({...}) })
+  const body = await req.json();
+
+  // Insert into PostgreSQL
+  const item = await prisma.resource.create({
+    data: body,
+  });
+
+  // Return the newly created record
+  // Status 201 = "Created" (standard for successful POST)
+  return NextResponse.json(item, { status: 201 });
+}
